@@ -3,7 +3,7 @@ name: Terraform-Infra-Pipeline-$(Date:ddMMyyyy)-$(Rev:r)
 trigger:
   branches:
     include:
-      - features/*
+      - feature/*
       - main
 
 pr:
