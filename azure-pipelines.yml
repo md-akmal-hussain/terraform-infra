@@ -1,4 +1,4 @@
-name: Terraform-Pipeline-$(Date:yyyyMMdd)-$(Rev:r)
+name: Terraform-Infra-Pipeline-$(Date:ddMMyyyy)-$(Rev:r)    ###### $()
 
 trigger:
   branches:
@@ -8,11 +8,17 @@ trigger:
 
 pr: none
 
+parameters:
+  - name: environments
+    displayName: Select Environment
+    type: string
+    default: dev
+    values:
+      - dev
+      - prod
+
 variables:
   - group: Terraform-Variables
-
-  - name: terraformWorkingDirectory
-    value: '$(System.DefaultWorkingDirectory)/environments/dev'
 
   - name: serviceConnection
     value: 'Yaml_Svc'
@@ -29,11 +35,11 @@ variables:
   - name: ContainerName
     value: 'production-container'
 
-  - name: 'backendKey'
-    value:  'dev/axion-systems-dev.terraform.tfstate'  
+  - name: terraformWorkingDirectory
+    value: '$(System.DefaultWorkingDirectory)/environments/${{ parameters.environments }}'
 
-  - name: 'backendKey'
-    value:  'prod/axion-systems-prod.terraform.tfstate'
+  - name: backendKey
+    value: '${{ parameters.environments }}/axion-systems-${{ parameters.environments }}.terraform.tfstate'    
 
 
 stages:
@@ -44,8 +50,6 @@ stages:
 
 - stage: TerraformInitAndValidateFmt
   displayName: 'Terraform Initialization And Validation'
-  dependsOn: 
-    - Infracost
 
   pool:
     name: $(poolName)
@@ -107,7 +111,7 @@ stages:
   displayName: 'Security Scan'
 
   dependsOn:
-    - Infracost
+    - TerraformInitAndValidateFmt
 
   condition: succeeded()
 
@@ -147,7 +151,6 @@ stages:
 
     - task: PowerShell@2
       displayName: 'Checkov'
-      condition:  eq(1, 2)
       inputs:
         targetType: inline
         workingDirectory: '$(terraformWorkingDirectory)'
@@ -165,7 +168,6 @@ stages:
 
     - task: PowerShell@2
       displayName: 'tfsec'
-      condition:  eq(1, 2)
       inputs:
         targetType: inline
         workingDirectory: '$(terraformWorkingDirectory)'
@@ -183,7 +185,6 @@ stages:
 
     - task: PowerShell@2
       displayName: 'Terrascan'
-      condition:  eq(1, 2)
       inputs:
         targetType: inline
         workingDirectory: '$(terraformWorkingDirectory)'
@@ -203,7 +204,6 @@ stages:
 
     - task: PowerShell@2
       displayName: 'Gitleaks Secret Scan'
-      condition:  eq(1, 2)
       inputs:
         targetType: inline
         script: |
@@ -223,7 +223,6 @@ stages:
 
     - task: PowerShell@2
       displayName: 'TruffleHog Secret Scan'
-      condition: ne(variables['Build.SourceBranch'], 'refs/heads/features/1')
       inputs:
         targetType: inline
         script: |
@@ -244,9 +243,9 @@ stages:
   displayName: 'Terraform Plan'
 
   dependsOn:
-    # - SecurityScan
+    - SecurityScan
 
-  # condition: succeeded()
+  condition: succeeded()
 
   pool:
     name: $(poolName)
@@ -483,8 +482,6 @@ stages:
   dependsOn:
     - TerraformPlan
 
-  condition: eq(1, 2)
-
   pool:
     name: $(poolName)
 
@@ -600,7 +597,7 @@ stages:
   displayName: 'Manual Approval Before Main Merge'
 
   dependsOn:
-    - Infracost
+    - TerraformPlan
 
   condition: succeeded()
 
@@ -651,7 +648,7 @@ stages:
   dependsOn:
     - TerraformPlan
 
-  condition: succeeded()
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
 
   pool:
     name: $(poolName)
