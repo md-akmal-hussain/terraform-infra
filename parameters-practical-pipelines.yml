@@ -42,7 +42,7 @@ parameters:
   - name: runTerraformInitValidateFmt
     displayName: 'Run Terraform Init Validate Fmt?'
     type: boolean
-    default: false
+    default: true
 
 
   # ------------------------------------------------------------
