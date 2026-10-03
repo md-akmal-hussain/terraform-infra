@@ -1,0 +1,734 @@
+name: Terraform-Pipeline-$(Date:yyyyMMdd)-$(Rev:r)
+
+trigger:
+  branches:
+    include:
+      - features/*
+      - main
+
+pr: none
+
+variables:
+  - group: Terraform-Variables
+
+  - name: terraformWorkingDirectory
+    value: '$(System.DefaultWorkingDirectory)/environments/dev'
+
+  - name: serviceConnection
+    value: 'Yaml_Svc'
+
+  - name: poolName
+    value: 'Yaml_Pool'
+
+  - name: ResourceGroupName
+    value: 'pipelinestg'
+
+  - name: StorageAccountName
+    value: 'stgnagpipeline'
+
+  - name: ContainerName
+    value: 'production-container'
+
+  - name: 'backendKey'
+    value:  'dev/axion-systems-dev.terraform.tfstate'  
+
+  - name: 'backendKey'
+    value:  'prod/axion-systems-prod.terraform.tfstate'
+
+
+stages:
+
+# ==============================================================
+# STAGE 1: TERRAFORM INIT + VALIDATE + FORMAT
+# ==============================================================
+
+- stage: TerraformInitAndValidateFmt
+  displayName: 'Terraform Initialization And Validation'
+  dependsOn: 
+    - Infracost
+
+  pool:
+    name: $(poolName)
+
+  jobs:
+
+  - job: Job1_TerraformInitAndValidateAndFormating
+    displayName: 'Terraform Initialization And Validation And Formatting'
+
+    steps:
+
+    # ---------------------------------------------------------
+    # Terraform Init
+    # ---------------------------------------------------------
+
+    - task: TerraformTask@5
+      displayName: 'Terraform Initialization'
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(terraformWorkingDirectory)'
+        backendServiceArm: '$(serviceConnection)'
+        backendAzureRmResourceGroupName: '$(ResourceGroupName)'
+        backendAzureRmStorageAccountName: '$(StorageAccountName)'
+        backendAzureRmContainerName: '$(ContainerName)'
+        backendAzureRmKey: '$(backendKey)'
+
+    # --------------------------------------------------------
+    # Terraform Validate
+    # --------------------------------------------------------
+
+    - task: TerraformTask@5
+      displayName: 'Terraform Validation'
+      inputs:
+        provider: 'azurerm'
+        command: 'validate'
+        workingDirectory: '$(terraformWorkingDirectory)'
+
+    # --------------------------------------------------------
+    # Terraform Format
+    # --------------------------------------------------------
+
+    - task: TerraformTask@5
+      displayName: 'Terraform Formatting'
+      inputs:
+        provider: 'azurerm'
+        command: 'custom'
+        workingDirectory: '$(terraformWorkingDirectory)'
+        outputTo: 'console'
+        customCommand: 'fmt'
+        environmentServiceNameAzureRM: '$(serviceConnection)'
+
+
+# ============================================================
+# STAGE 2: SECURITY SCAN
+# ============================================================
+
+- stage: SecurityScan
+  displayName: 'Security Scan'
+
+  dependsOn:
+    - Infracost
+
+  condition: succeeded()
+
+  pool:
+    name: $(poolName)
+
+  jobs:
+
+  - job: TerraformSecurityScan
+    displayName: 'Security Scanning'
+
+    steps:
+
+    # ========================================================
+    # TFLINT
+    # ========================================================
+
+    - task: PowerShell@2
+      displayName: 'TFLint'
+      inputs:
+        targetType: inline
+        workingDirectory: '$(terraformWorkingDirectory)'
+        script: |
+          Write-Host "========================================="
+          Write-Host "Running TFLint..."
+          Write-Host "========================================="
+
+          tflint --init
+          tflint
+
+          exit 0
+
+
+    # ========================================================
+    # CHECKOV
+    # ========================================================
+
+    - task: PowerShell@2
+      displayName: 'Checkov'
+      condition:  eq(1, 2)
+      inputs:
+        targetType: inline
+        workingDirectory: '$(terraformWorkingDirectory)'
+        script: |
+          Write-Host "========================================="
+          Write-Host "Running Checkov..."
+          Write-Host "========================================="
+
+          checkov -d . --soft-fail --quiet
+
+
+    # ========================================================
+    # TFSEC
+    # ========================================================
+
+    - task: PowerShell@2
+      displayName: 'tfsec'
+      condition:  eq(1, 2)
+      inputs:
+        targetType: inline
+        workingDirectory: '$(terraformWorkingDirectory)'
+        script: |
+          Write-Host "========================================="
+          Write-Host "Running tfsec..."
+          Write-Host "========================================="
+
+          tfsec .
+
+
+    # ========================================================
+    # TERRASCAN
+    # ========================================================
+
+    - task: PowerShell@2
+      displayName: 'Terrascan'
+      condition:  eq(1, 2)
+      inputs:
+        targetType: inline
+        workingDirectory: '$(terraformWorkingDirectory)'
+        script: |
+          Write-Host "========================================="
+          Write-Host "Running Terrascan..."
+          Write-Host "========================================="
+
+          terrascan scan -t azure --soft-fail
+
+          exit 0
+
+
+    # ========================================================
+    # GITLEAKS
+    # ========================================================
+
+    - task: PowerShell@2
+      displayName: 'Gitleaks Secret Scan'
+      condition:  eq(1, 2)
+      inputs:
+        targetType: inline
+        script: |
+          Write-Host "========================================="
+          Write-Host "Running Gitleaks..."
+          Write-Host "========================================="
+
+          gitleaks detect `
+            --source "$(Build.SourcesDirectory)" `
+            --no-banner `
+            --exit-code 0
+
+
+    # ========================================================
+    # TRUFFLEHOG
+    # ========================================================
+
+    - task: PowerShell@2
+      displayName: 'TruffleHog Secret Scan'
+      condition: ne(variables['Build.SourceBranch'], 'refs/heads/features/1')
+      inputs:
+        targetType: inline
+        script: |
+          Write-Host "========================================="
+          Write-Host "Running TruffleHog..."
+          Write-Host "========================================="
+
+          trufflehog filesystem "$(Build.SourcesDirectory)"
+
+          exit 0
+
+
+# ============================================================
+# STAGE 3: TERRAFORM PLAN
+# ============================================================
+
+- stage: TerraformPlan
+  displayName: 'Terraform Plan'
+
+  dependsOn:
+    # - SecurityScan
+
+  # condition: succeeded()
+
+  pool:
+    name: $(poolName)
+
+  jobs:
+
+  - job: Job1_TerraformInitAndPlan
+    displayName: 'Terraform Init And Plan'
+
+    steps:
+
+    # --------------------------------------------------------
+    # Terraform Init
+    # --------------------------------------------------------
+
+    - task: TerraformTask@5
+      displayName: 'Terraform Initialization'
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(terraformWorkingDirectory)'
+        backendServiceArm: '$(serviceConnection)'
+        backendAzureRmResourceGroupName: '$(ResourceGroupName)'
+        backendAzureRmStorageAccountName: '$(StorageAccountName)'
+        backendAzureRmContainerName: '$(ContainerName)'
+        backendAzureRmKey: '$(backendKey)'
+
+
+    # --------------------------------------------------------
+    # Validate Key Vault Principal ID
+    # --------------------------------------------------------
+
+    - task: PowerShell@2
+      displayName: 'Validate Key Vault Principal ID'
+      inputs:
+        targetType: inline
+        script: |
+          if ([string]::IsNullOrWhiteSpace("$(key_vault_principal_id)")) {
+              Write-Error "key_vault_principal_id is missing from Variable Group."
+              exit 1
+          }
+
+          Write-Host "key_vault_principal_id is available."
+          Write-Host "Terraform variable validation passed."
+
+
+    # ---------------------------------------------------------
+    # Create Terraform Credentials File
+    # ---------------------------------------------------------
+
+    - task: PowerShell@2
+      displayName: 'Create Terraform Credentials File'
+      inputs:
+        targetType: inline
+        workingDirectory: '$(terraformWorkingDirectory)'
+        script: |
+          $terraformVars = @{
+            vm_admin_usernames = @{
+              vm1 = $env:VM1_USERNAME
+              vm2 = $env:VM2_USERNAME
+            }
+
+            vm_admin_passwords = @{
+              vm1 = $env:VM1_PASSWORD
+              vm2 = $env:VM2_PASSWORD
+            }
+
+            postgres_admin_usernames = @{
+              psql1 = $env:PSQL1_USERNAME
+            }
+
+            postgres_admin_passwords = @{
+              psql1 = $env:PSQL1_PASSWORD
+            }
+          }
+
+          $json = $terraformVars | ConvertTo-Json -Depth 10
+
+          $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
+          [System.IO.File]::WriteAllText(
+            "$(terraformWorkingDirectory)\pipeline.auto.tfvars.json",
+            $json,
+            $utf8NoBom
+          )
+
+          Write-Host "Terraform credentials file created successfully."
+      env:
+        VM1_USERNAME: $(vm1_username)
+        VM1_PASSWORD: $(vm1_password)
+        VM2_USERNAME: $(vm2_username)
+        VM2_PASSWORD: $(vm2_password)
+        PSQL1_USERNAME: $(psql1_username)
+        PSQL1_PASSWORD: $(psql1_password)
+
+    # ---------------------------------------------------------
+    # Terraform Plan
+    # ---------------------------------------------------------
+
+    - task: TerraformTask@5
+      displayName: 'Terraform Plan'
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        workingDirectory: '$(terraformWorkingDirectory)'
+        environmentServiceNameAzureRM: '$(serviceConnection)'
+        commandOptions: '-out=tfplan -input=false -var-file=pipeline.auto.tfvars.json'
+      env:
+        TF_VAR_key_vault_principal_id: $(key_vault_principal_id)
+
+
+
+
+    # --------------------------------------------------------
+    # Verify Binary Terraform Plan
+    # --------------------------------------------------------
+
+    - task: PowerShell@2
+      displayName: 'Verify Terraform Plan'
+      inputs:
+        targetType: inline
+        workingDirectory: '$(terraformWorkingDirectory)'
+        script: |
+          Write-Host "========================================="
+          Write-Host "Checking Terraform plan file..."
+          Write-Host "========================================="
+
+          $planFile = "$(terraformWorkingDirectory)\tfplan"
+
+          Write-Host "Expected plan file:"
+          Write-Host $planFile
+
+          if (Test-Path $planFile) {
+
+              Write-Host "========================================="
+              Write-Host "tfplan FOUND"
+              Write-Host "========================================="
+
+              Get-Item $planFile
+
+          }
+          else {
+
+              Write-Error "tfplan NOT FOUND"
+              exit 1
+
+          }
+
+
+    # --------------------------------------------------------
+    # Create Terraform Plan JSON
+    # --------------------------------------------------------
+
+    - task: PowerShell@2
+      displayName: 'Create Terraform Plan JSON'
+      inputs:
+        targetType: inline
+        workingDirectory: '$(terraformWorkingDirectory)'
+        script: |
+          Write-Host "========================================="
+          Write-Host "Converting Terraform plan to JSON..."
+          Write-Host "========================================="
+
+          $planFile = "$(terraformWorkingDirectory)\tfplan"
+          $jsonFile = "$(terraformWorkingDirectory)\tfplan.json"
+
+          if (!(Test-Path $planFile)) {
+
+              Write-Error "tfplan file not found."
+              exit 1
+
+          }
+
+          cmd /c "terraform show -json tfplan > tfplan.json"
+
+          if (!(Test-Path $jsonFile)) {
+
+              Write-Error "tfplan.json was not created."
+              exit 1
+
+          }
+
+          $file = Get-Item $jsonFile
+
+          Write-Host "========================================="
+          Write-Host "Terraform Plan JSON Created"
+          Write-Host "========================================="
+
+          Write-Host "File:"
+          Write-Host $file.FullName
+
+          Write-Host "Size:"
+          Write-Host "$($file.Length) bytes"
+
+          if ($file.Length -eq 0) {
+
+              Write-Error "tfplan.json is EMPTY."
+              exit 1
+
+          }
+
+
+    # --------------------------------------------------------
+    # Publish Binary tfplan
+    # --------------------------------------------------------
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Terraform Binary Plan'
+      inputs:
+        targetPath: '$(terraformWorkingDirectory)/tfplan'
+        artifact: 'terraform-binary-plan'
+        publishLocation: 'pipeline'
+
+
+    # --------------------------------------------------------
+    # Publish Terraform Plan JSON
+    # --------------------------------------------------------
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Terraform Plan JSON'
+      inputs:
+        targetPath: '$(terraformWorkingDirectory)/tfplan.json'
+        artifact: 'terraform-plan-json'
+        publishLocation: 'pipeline'
+
+
+# =============================================================
+# STAGE 4: INFRACOST
+# =============================================================
+
+- stage: Infracost
+  displayName: 'Infracost Cost Estimation'
+
+  dependsOn:
+    - TerraformPlan
+
+  condition: eq(1, 2)
+
+  pool:
+    name: $(poolName)
+
+  jobs:
+
+  - job: InfracostJob
+    displayName: 'Infracost Cost Estimation'
+
+    steps:
+
+    # --------------------------------------------------------
+    # Download Terraform Plan JSON
+    # --------------------------------------------------------
+
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download Terraform Plan JSON'
+      inputs:
+        artifact: 'terraform-plan-json'
+        path: '$(Pipeline.Workspace)/terraform-plan'
+
+
+    # --------------------------------------------------------
+    # Verify Plan JSON
+    # --------------------------------------------------------
+
+    - task: PowerShell@2
+      displayName: 'Verify Terraform Plan JSON'
+      inputs:
+        targetType: inline
+        script: |
+
+          Write-Host "========================================="
+          Write-Host "Checking Terraform Plan JSON..."
+          Write-Host "========================================="
+
+          $planFile = "$(Pipeline.Workspace)\terraform-plan\tfplan.json"
+
+          Write-Host "Expected file:"
+          Write-Host $planFile
+
+          if (Test-Path $planFile) {
+
+              Write-Host "========================================="
+              Write-Host "tfplan.json FOUND"
+              Write-Host "========================================="
+
+              Get-Item $planFile
+
+          }
+          else {
+
+              Write-Error "tfplan.json NOT FOUND"
+              exit 1
+
+          }
+
+
+    # --------------------------------------------------------
+    # Run Infracost
+    # --------------------------------------------------------
+
+    - task: PowerShell@2
+      displayName: 'Run Infracost'
+      inputs:
+        targetType: inline
+        script: |
+
+          Write-Host "========================================="
+          Write-Host "Running Infracost..."
+          Write-Host "========================================="
+
+          $planFile = "$(Pipeline.Workspace)\terraform-plan\tfplan.json"
+          $outputDir = "$(Pipeline.Workspace)\terraform-plan"
+
+          if (!(Test-Path $outputDir)) {
+
+              New-Item `
+                -ItemType Directory `
+                -Path $outputDir `
+                -Force
+
+          }
+
+          infracost breakdown `
+            --path "$planFile" `
+            --format json `
+            --out-file "$outputDir\infracost.json"
+
+          if ($LASTEXITCODE -ne 0) {
+
+              Write-Error "Infracost breakdown failed."
+              exit $LASTEXITCODE
+
+          }
+
+          Write-Host "Infracost JSON created."
+
+          Get-Item "$outputDir\infracost.json"
+
+          infracost output `
+            --path "$outputDir\infracost.json" `
+            --format table
+
+      env:
+        INFRACOST_API_KEY: $(INFRACOST_API_KEY)
+
+
+# =============================================================
+# STAGE 5: MANUAL APPROVAL
+# =============================================================
+
+- stage: ManualApproval
+  displayName: 'Manual Approval Before Main Merge'
+
+  dependsOn:
+    - Infracost
+
+  condition: succeeded()
+
+  jobs:
+
+  - job: ManualApprovalJob
+    displayName: 'Manual Approval'
+    pool: server
+    timeoutInMinutes: 1440
+
+    steps:
+
+    - task: ManualValidation@1
+      displayName: 'Approve Feature Branch For Main Merge'
+      inputs:
+        notifyUsers: |
+          $(Build.RequestedForEmail)
+
+        instructions: |
+          Terraform validation, security scanning,
+          Terraform plan and Infracost completed successfully.
+
+          Please review the Terraform Plan.
+
+          Approve this step only if the changes are ready
+          to be merged into the main branch.
+
+        onTimeout: 'reject'
+
+
+# ============================================================
+# STAGE 6: TERRAFORM APPLY
+# ============================================================
+#
+# Currently disabled intentionally.
+#
+# IMPORTANT:
+# When enabled, this stage downloads the EXACT binary
+# tfplan generated and approved in TerraformPlan stage.
+#
+# It does NOT create a fresh Terraform plan.
+#
+# ============================================================
+
+- stage: TerraformApply
+  displayName: 'Terraform Apply'
+
+  dependsOn:
+    - TerraformPlan
+
+  condition: succeeded()
+
+  pool:
+    name: $(poolName)
+
+  jobs:
+
+  - job: Job1_TerraformApply
+    displayName: 'Terraform Apply'
+
+    steps:
+
+    # --------------------------------------------------------
+    # Terraform Init
+    # --------------------------------------------------------
+
+    - task: TerraformTask@5
+      displayName: 'Terraform Initialization'
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(terraformWorkingDirectory)'
+        backendServiceArm: '$(serviceConnection)'
+        backendAzureRmResourceGroupName: '$(ResourceGroupName)'
+        backendAzureRmStorageAccountName: '$(StorageAccountName)'
+        backendAzureRmContainerName: '$(ContainerName)'
+        backendAzureRmKey: '$(backendKey)'
+
+
+    # --------------------------------------------------------
+    # Download EXACT Approved Binary Plan
+    # --------------------------------------------------------
+
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download Approved Terraform Plan'
+      inputs:
+        artifact: 'terraform-binary-plan'
+        path: '$(terraformWorkingDirectory)'
+
+
+    # --------------------------------------------------------
+    # Verify Binary Plan
+    # --------------------------------------------------------
+
+    - task: PowerShell@2
+      displayName: 'Verify Approved Terraform Plan'
+      inputs:
+        targetType: inline
+        workingDirectory: '$(terraformWorkingDirectory)'
+        script: |
+
+          Write-Host "========================================="
+          Write-Host "Checking approved Terraform plan..."
+          Write-Host "========================================="
+
+          $planFile = "$(terraformWorkingDirectory)\tfplan"
+
+          if (!(Test-Path $planFile)) {
+
+              Write-Error "Approved tfplan NOT FOUND."
+              exit 1
+
+          }
+
+          Write-Host "Approved tfplan FOUND."
+
+          Get-Item $planFile
+
+
+    # --------------------------------------------------------
+    # Apply EXACT Approved Plan
+    # --------------------------------------------------------
+
+    - task: TerraformTask@5
+      displayName: 'Terraform Apply Approved Plan'
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        workingDirectory: '$(terraformWorkingDirectory)'
+        environmentServiceNameAzureRM: '$(serviceConnection)'
+        commandOptions: 'tfplan'
