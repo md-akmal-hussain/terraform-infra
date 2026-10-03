@@ -572,14 +572,14 @@ stages:
 
           }
 
-          infracost breakdown `
+          infracost scan `
             --path "$planFile" `
             --format json `
             --out-file "$outputDir\infracost.json"
 
           if ($LASTEXITCODE -ne 0) {
 
-              Write-Error "Infracost breakdown failed."
+              Write-Error "Infracost scan failed."
               exit $LASTEXITCODE
 
           }
@@ -653,7 +653,7 @@ stages:
   displayName: 'Terraform Apply'
 
   dependsOn:
-    - TerraformPlan
+    - ManualApproval
 
   condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
 
