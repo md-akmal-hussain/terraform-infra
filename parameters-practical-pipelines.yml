@@ -254,7 +254,7 @@ stages:
 
   displayName: 'TFLint Validation'
 
-  dependOn:
+  dependsOn:
     - TerraformInitAndValidateFmt
 
   condition: and(
