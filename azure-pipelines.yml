@@ -499,10 +499,7 @@ stages:
 
     steps:
 
-    # --------------------------------------------------------
     # Download Terraform Plan JSON
-    # --------------------------------------------------------
-
     - task: DownloadPipelineArtifact@2
       displayName: 'Download Terraform Plan JSON'
       inputs:
@@ -510,87 +507,28 @@ stages:
         path: '$(Pipeline.Workspace)/terraform-plan'
 
 
-    # --------------------------------------------------------
-    # Verify Plan JSON
-    # --------------------------------------------------------
-
-    - task: PowerShell@2
-      displayName: 'Verify Terraform Plan JSON'
-      inputs:
-        targetType: inline
-        script: |
-
-          Write-Host "========================================="
-          Write-Host "Checking Terraform Plan JSON..."
-          Write-Host "========================================="
-
-          $planFile = "$(Pipeline.Workspace)\terraform-plan\tfplan.json"
-
-          Write-Host "Expected file:"
-          Write-Host $planFile
-
-          if (Test-Path $planFile) {
-
-              Write-Host "========================================="
-              Write-Host "tfplan.json FOUND"
-              Write-Host "========================================="
-
-              Get-Item $planFile
-
-          }
-          else {
-
-              Write-Error "tfplan.json NOT FOUND"
-              exit 1
-
-          }
-
-
-    # --------------------------------------------------------
     # Run Infracost
-    # --------------------------------------------------------
-
     - task: PowerShell@2
       displayName: 'Run Infracost'
       inputs:
         targetType: inline
         script: |
 
-          Write-Host "========================================="
-          Write-Host "Running Infracost..."
-          Write-Host "========================================="
-
           $planFile = "$(Pipeline.Workspace)\terraform-plan\tfplan.json"
-          $outputDir = "$(Pipeline.Workspace)\terraform-plan"
 
-          if (!(Test-Path $outputDir)) {
-
-              New-Item `
-                -ItemType Directory `
-                -Path $outputDir `
-                -Force
-
+          if (!(Test-Path $planFile)) {
+              Write-Error "tfplan.json NOT FOUND"
+              exit 1
           }
 
-          infracost scan `
-            --path "$planFile" `
-            --format json `
-            --out-file "$outputDir\infracost.json"
+          cd "$(Pipeline.Workspace)\terraform-plan"
+
+          infracost scan .\tfplan.json
 
           if ($LASTEXITCODE -ne 0) {
-
               Write-Error "Infracost scan failed."
               exit $LASTEXITCODE
-
           }
-
-          Write-Host "Infracost JSON created."
-
-          Get-Item "$outputDir\infracost.json"
-
-          infracost output `
-            --path "$outputDir\infracost.json" `
-            --format table
 
       env:
         INFRACOST_API_KEY: $(INFRACOST_API_KEY)
