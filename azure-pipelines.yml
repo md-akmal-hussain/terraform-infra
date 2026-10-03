@@ -1,4 +1,4 @@
-name: Terraform-Infra-Pipeline-$(Date:ddMMyyyy)-$(Rev:r)    ###### $()
+name: Terraform-Infra-Pipeline-$(Date:ddMMyyyy)-$(Rev:r)   
 
 trigger:
   branches:
@@ -6,7 +6,11 @@ trigger:
       - features/*
       - main
 
-pr: none
+pr:
+  branches:
+    includes:
+      - main
+
 
 parameters:
   - name: environments
@@ -18,6 +22,7 @@ parameters:
       - prod
 
 variables:
+
   - group: Terraform-Variables
 
   - name: serviceConnection
@@ -29,7 +34,7 @@ variables:
   - name: ResourceGroupName
     value: 'pipelinestg'
 
-  - name: StorageAccountName
+  - name: StorageAccountName                  
     value: 'stgnagpipeline'
 
   - name: ContainerName
@@ -39,7 +44,9 @@ variables:
     value: '$(System.DefaultWorkingDirectory)/environments/${{ parameters.environments }}'
 
   - name: backendKey
-    value: '${{ parameters.environments }}/axion-systems-${{ parameters.environments }}.terraform.tfstate'    
+    value: '${{ parameters.environments }}/axion-systems-${{ parameters.environments }}.terraform.tfstate' 
+
+       
 
 
 stages:
@@ -140,7 +147,7 @@ stages:
           Write-Host "========================================="
 
           tflint --init
-          tflint
+          tflint --recursive
 
           exit 0
 
