@@ -79,8 +79,8 @@ parameters:
     type: boolean
     default: false
 
-  - name: runTivy
-    displayName: '07- Run Tivy?'
+  - name: runTrivy
+    displayName: '07- Run Trivy?'
     type: boolean
     default: false
 
