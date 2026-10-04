@@ -2,302 +2,302 @@
 # STAGE 2
 # TFLINT
 # ==============================================================
+stages:
+  - stage: TFLint
 
-- stage: TFLint
+    displayName: 'TFLint Validation'
 
-  displayName: 'TFLint Validation'
+    dependsOn:
+      - TerraformInitAndValidateFmt
 
-  dependsOn:
-    - TerraformInitAndValidateFmt
+    condition: and(
+      always(),
+      eq('${{ parameters.runTFLint }}', 'true'))
 
-  condition: and(
-    always(),
-    eq('${{ parameters.runTFLint }}', 'true'))
+    pool:
+      name: $(poolName)
 
-  pool:
-    name: $(poolName)
+    jobs:
 
-  jobs:
+    - job: TFLintJob
 
-  - job: TFLintJob
+      displayName: 'TFLint Security Validation'
 
-    displayName: 'TFLint Security Validation'
+      steps:
 
-    steps:
+      - task: PowerShell@2
+        displayName: 'Run TFLint'
 
-    - task: PowerShell@2
-      displayName: 'Run TFLint'
+        inputs:
+          targetType: inline
+          workingDirectory: '$(terraformWorkingDirectory)'
 
-      inputs:
-        targetType: inline
-        workingDirectory: '$(terraformWorkingDirectory)'
+          script: |
 
-        script: |
+            Write-Host "========================================="
+            Write-Host "Running TFLint..."
+            Write-Host "========================================="
 
-          Write-Host "========================================="
-          Write-Host "Running TFLint..."
-          Write-Host "========================================="
-
-          tflint --recursive
-          exit 0
+            tflint --recursive
+            exit 0
 
 
-# ==============================================================
-# STAGE 3
-# CHECKOV
-# ==============================================================
+  # ==============================================================
+  # STAGE 3
+  # CHECKOV
+  # ==============================================================
 
-- stage: Checkov
-
-  displayName: 'Checkov Security Scan'
-
-  dependsOn:
-    - TerraformInitAndValidateFmt
-
-  condition: and(
-    always(),
-    eq('${{ parameters.runCheckov }}', 'true'))
-
-  pool:
-    name: $(poolName)
-
-  jobs:
-
-  - job: CheckovJob
+  - stage: Checkov
 
     displayName: 'Checkov Security Scan'
 
-    steps:
+    dependsOn:
+      - TerraformInitAndValidateFmt
 
-    - task: PowerShell@2
-      displayName: 'Run Checkov'
+    condition: and(
+      always(),
+      eq('${{ parameters.runCheckov }}', 'true'))
 
-      inputs:
-        targetType: inline
-        workingDirectory: '$(terraformWorkingDirectory)'
+    pool:
+      name: $(poolName)
 
-        script: |
+    jobs:
 
-          Write-Host "========================================="
-          Write-Host "Running Checkov..."
-          Write-Host "========================================="
+    - job: CheckovJob
 
-          checkov -d . --soft-fail --quiet
+      displayName: 'Checkov Security Scan'
+
+      steps:
+
+      - task: PowerShell@2
+        displayName: 'Run Checkov'
+
+        inputs:
+          targetType: inline
+          workingDirectory: '$(terraformWorkingDirectory)'
+
+          script: |
+
+            Write-Host "========================================="
+            Write-Host "Running Checkov..."
+            Write-Host "========================================="
+
+            checkov -d . --soft-fail --quiet
 
 
-# ==============================================================
-# STAGE 4
-# TFSEC
-# ==============================================================
+  # ==============================================================
+  # STAGE 4
+  # TFSEC
+  # ==============================================================
 
-- stage: Tfsec
-
-  displayName: 'tfsec Security Scan'
-
-  dependsOn:
-    - TerraformInitAndValidateFmt
-
-  condition: and(
-    always(),
-    eq('${{ parameters.runTfsec }}', 'true'))
-
-  pool:
-    name: $(poolName)
-
-  jobs:
-
-  - job: TfsecJob
+  - stage: Tfsec
 
     displayName: 'tfsec Security Scan'
 
-    steps:
+    dependsOn:
+      - TerraformInitAndValidateFmt
 
-    - task: PowerShell@2
-      displayName: 'Run tfsec'
+    condition: and(
+      always(),
+      eq('${{ parameters.runTfsec }}', 'true'))
 
-      inputs:
-        targetType: inline
-        workingDirectory: '$(terraformWorkingDirectory)'
+    pool:
+      name: $(poolName)
 
-        script: |
+    jobs:
 
-          Write-Host "========================================="
-          Write-Host "Running tfsec..."
-          Write-Host "========================================="
+    - job: TfsecJob
 
-          tfsec .
+      displayName: 'tfsec Security Scan'
+
+      steps:
+
+      - task: PowerShell@2
+        displayName: 'Run tfsec'
+
+        inputs:
+          targetType: inline
+          workingDirectory: '$(terraformWorkingDirectory)'
+
+          script: |
+
+            Write-Host "========================================="
+            Write-Host "Running tfsec..."
+            Write-Host "========================================="
+
+            tfsec .
 
 
-# ==============================================================
-# STAGE 5
-# TERRASCAN
-# ==============================================================
+  # ==============================================================
+  # STAGE 5
+  # TERRASCAN
+  # ==============================================================
 
-- stage: Terrascan
-
-  displayName: 'Terrascan Security Scan'
-
-  dependsOn:
-    - TerraformInitAndValidateFmt
-
-  condition: and(
-    always(),
-    eq('${{ parameters.runTerrascan }}', 'true'))
-
-  pool:
-    name: $(poolName)
-
-  jobs:
-
-  - job: TerrascanJob
+  - stage: Terrascan
 
     displayName: 'Terrascan Security Scan'
 
-    steps:
+    dependsOn:
+      - TerraformInitAndValidateFmt
 
-    - task: PowerShell@2
-      displayName: 'Run Terrascan'
+    condition: and(
+      always(),
+      eq('${{ parameters.runTerrascan }}', 'true'))
 
-      inputs:
-        targetType: inline
-        workingDirectory: '$(terraformWorkingDirectory)'
+    pool:
+      name: $(poolName)
 
-        script: |
+    jobs:
 
-          Write-Host "========================================="
-          Write-Host "Running Terrascan..."
-          Write-Host "========================================="
+    - job: TerrascanJob
 
-          terrascan scan -t azure --soft-fail
+      displayName: 'Terrascan Security Scan'
 
-          exit 0
+      steps:
+
+      - task: PowerShell@2
+        displayName: 'Run Terrascan'
+
+        inputs:
+          targetType: inline
+          workingDirectory: '$(terraformWorkingDirectory)'
+
+          script: |
+
+            Write-Host "========================================="
+            Write-Host "Running Terrascan..."
+            Write-Host "========================================="
+
+            terrascan scan -t azure --soft-fail
+
+            exit 0
 
 
-# ==============================================================
-# STAGE 6
-# GITLEAKS
-# ==============================================================
+  # ==============================================================
+  # STAGE 6
+  # GITLEAKS
+  # ==============================================================
 
-- stage: Gitleaks
-
-  displayName: 'Gitleaks Secret Scan'
-
-  dependsOn:
-    - TerraformInitAndValidateFmt
-
-  condition: and(
-    always(),
-    eq('${{ parameters.runGitleaks }}', 'true'))
-
-  pool:
-    name: $(poolName)
-
-  jobs:
-
-  - job: GitleaksJob
+  - stage: Gitleaks
 
     displayName: 'Gitleaks Secret Scan'
 
-    steps:
+    dependsOn:
+      - TerraformInitAndValidateFmt
 
-    - task: PowerShell@2
-      displayName: 'Run Gitleaks'
+    condition: and(
+      always(),
+      eq('${{ parameters.runGitleaks }}', 'true'))
 
-      inputs:
-        targetType: inline
+    pool:
+      name: $(poolName)
 
-        script: |
+    jobs:
 
-          Write-Host "========================================="
-          Write-Host "Running Gitleaks..."
-          Write-Host "========================================="
+    - job: GitleaksJob
 
-          gitleaks detect `
-            --source "$(Build.SourcesDirectory)" `
-            --no-banner `
-            --exit-code 0
+      displayName: 'Gitleaks Secret Scan'
+
+      steps:
+
+      - task: PowerShell@2
+        displayName: 'Run Gitleaks'
+
+        inputs:
+          targetType: inline
+
+          script: |
+
+            Write-Host "========================================="
+            Write-Host "Running Gitleaks..."
+            Write-Host "========================================="
+
+            gitleaks detect `
+              --source "$(Build.SourcesDirectory)" `
+              --no-banner `
+              --exit-code 0
 
 
-# ==============================================================
-# STAGE 7
-# TRUFFLEHOG
-# ==============================================================
+  # ==============================================================
+  # STAGE 7
+  # TRUFFLEHOG
+  # ==============================================================
 
-- stage: TruffleHog
-
-  displayName: 'TruffleHog Secret Scan'
-
-  dependsOn:
-    - TerraformInitAndValidateFmt
-
-  condition: and(
-    always(),
-    eq('${{ parameters.runTruffleHog }}', 'true'))
-
-  pool:
-    name: $(poolName)
-
-  jobs:
-
-  - job: TruffleHogJob
+  - stage: TruffleHog
 
     displayName: 'TruffleHog Secret Scan'
 
-    steps:
+    dependsOn:
+      - TerraformInitAndValidateFmt
 
-    - task: PowerShell@2
-      displayName: 'Run TruffleHog'
+    condition: and(
+      always(),
+      eq('${{ parameters.runTruffleHog }}', 'true'))
 
-      inputs:
-        targetType: inline
+    pool:
+      name: $(poolName)
 
-        script: |
+    jobs:
 
-          Write-Host "========================================="
-          Write-Host "Running TruffleHog..."
-          Write-Host "========================================="
+    - job: TruffleHogJob
 
-          trufflehog filesystem "$(Build.SourcesDirectory)"
-          exit 0
+      displayName: 'TruffleHog Secret Scan'
 
-# ==============================================================
-# STAGE 8
-# TRIVY
-# ==============================================================
+      steps:
 
-- stage: Trivy
+      - task: PowerShell@2
+        displayName: 'Run TruffleHog'
 
-  displayName: 'Trivy Vulnerability Scan'
+        inputs:
+          targetType: inline
 
-  dependsOn:
-    - TerraformInitAndValidateFmt
+          script: |
 
-  condition: and(
-    always(),
-    eq('${{ parameters.runTrivy }}', 'true'))
+            Write-Host "========================================="
+            Write-Host "Running TruffleHog..."
+            Write-Host "========================================="
 
-  pool:
-    name: $(poolName)
+            trufflehog filesystem "$(Build.SourcesDirectory)"
+            exit 0
 
-  jobs:
+  # ==============================================================
+  # STAGE 8
+  # TRIVY
+  # ==============================================================
 
-  - job: TrivyJob
+  - stage: Trivy
 
     displayName: 'Trivy Vulnerability Scan'
 
-    steps:
+    dependsOn:
+      - TerraformInitAndValidateFmt
 
-    - task: PowerShell@2
-      displayName: 'Run Trivy'
+    condition: and(
+      always(),
+      eq('${{ parameters.runTrivy }}', 'true'))
 
-      inputs:
-        targetType: inline
+    pool:
+      name: $(poolName)
 
-        script: |
+    jobs:
 
-          Write-Host "========================================="
-          Write-Host "Running Trivy..."
-          Write-Host "========================================="
+    - job: TrivyJob
 
-          trivy fs . "$(Build.SourcesDirectory)"
-          exit 0
+      displayName: 'Trivy Vulnerability Scan'
+
+      steps:
+
+      - task: PowerShell@2
+        displayName: 'Run Trivy'
+
+        inputs:
+          targetType: inline
+
+          script: |
+
+            Write-Host "========================================="
+            Write-Host "Running Trivy..."
+            Write-Host "========================================="
+
+            trivy fs . "$(Build.SourcesDirectory)"
+            exit 0

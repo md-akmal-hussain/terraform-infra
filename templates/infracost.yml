@@ -2,82 +2,82 @@
 # STAGE 10
 # INFRACOST
 # ==============================================================
-
-- stage: Infracost
-
-  displayName: 'Infracost Cost Estimation'
-
-  dependsOn:
-    - TerraformPlan
-
-  condition: and(
-    always(),
-    eq('${{ parameters.runInfracost }}', 'true'),
-    eq(dependencies.TerraformPlan.result, 'Succeeded'))
-
-  pool:
-    name: $(poolName)
-
-  jobs:
-
-  - job: InfracostJob
+stages:
+  - stage: Infracost
 
     displayName: 'Infracost Cost Estimation'
 
-    steps:
+    dependsOn:
+      - TerraformPlan
+
+    condition: and(
+      always(),
+      eq('${{ parameters.runInfracost }}', 'true'),
+      eq(dependencies.TerraformPlan.result, 'Succeeded'))
+
+    pool:
+      name: $(poolName)
+
+    jobs:
+
+    - job: InfracostJob
+
+      displayName: 'Infracost Cost Estimation'
+
+      steps:
 
 
-    # ----------------------------------------------------------
-    # Download Terraform Plan JSON
-    # ----------------------------------------------------------
+      # ----------------------------------------------------------
+      # Download Terraform Plan JSON
+      # ----------------------------------------------------------
 
-    - task: DownloadPipelineArtifact@2
+      - task: DownloadPipelineArtifact@2
 
-      displayName: 'Download Terraform Plan JSON'
+        displayName: 'Download Terraform Plan JSON'
 
-      inputs:
-        artifact: 'terraform-plan-json'
-        path: '$(Pipeline.Workspace)/terraform-plan'
-
-
-    # ----------------------------------------------------------
-    # Run Infracost
-    # ----------------------------------------------------------
-
-    - task: PowerShell@2
-
-      displayName: 'Run Infracost'
-
-      inputs:
-        targetType: inline
-
-        script: |
-
-          $planFile =
-            "$(Pipeline.Workspace)\terraform-plan\tfplan.json"
+        inputs:
+          artifact: 'terraform-plan-json'
+          path: '$(Pipeline.Workspace)/terraform-plan'
 
 
-          if (!(Test-Path $planFile)) {
+      # ----------------------------------------------------------
+      # Run Infracost
+      # ----------------------------------------------------------
 
-              Write-Error "tfplan.json NOT FOUND"
+      - task: PowerShell@2
 
-              exit 1
-          }
+        displayName: 'Run Infracost'
+
+        inputs:
+          targetType: inline
+
+          script: |
+
+            $planFile =
+              "$(Pipeline.Workspace)\terraform-plan\tfplan.json"
 
 
-          cd "$(Pipeline.Workspace)\terraform-plan"
+            if (!(Test-Path $planFile)) {
+
+                Write-Error "tfplan.json NOT FOUND"
+
+                exit 1
+            }
 
 
-          infracost scan .\tfplan.json
+            cd "$(Pipeline.Workspace)\terraform-plan"
 
 
-          if ($LASTEXITCODE -ne 0) {
+            infracost scan .\tfplan.json
 
-              Write-Error "Infracost scan failed."
 
-              exit $LASTEXITCODE
-          }
+            if ($LASTEXITCODE -ne 0) {
 
-      env:
+                Write-Error "Infracost scan failed."
 
-        INFRACOST_API_KEY: $(INFRACOST_API_KEY)
+                exit $LASTEXITCODE
+            }
+
+        env:
+
+          INFRACOST_API_KEY: $(INFRACOST_API_KEY)

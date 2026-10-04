@@ -2,65 +2,65 @@
 # STAGE 13
 # POST DEPLOYMENT REVIEW
 # ==============================================================
+stages:
+  - stage: PostDeploymentReview
 
-- stage: PostDeploymentReview
+    displayName: 'Post Deployment Review'
 
-  displayName: 'Post Deployment Review'
+    dependsOn:
+      - TerraformApply
 
-  dependsOn:
-    - TerraformApply
+    condition: and(
+      always(),
+      eq('${{ parameters.runPostDeploymentReview }}', 'true'),
+      eq(dependencies.TerraformApply.result, 'Succeeded'))
 
-  condition: and(
-    always(),
-    eq('${{ parameters.runPostDeploymentReview }}', 'true'),
-    eq(dependencies.TerraformApply.result, 'Succeeded'))
+    pool:
+      name: $(poolName)
 
-  pool:
-    name: $(poolName)
+    jobs:
 
-  jobs:
+    - job: PostDeploymentReviewJob
 
-  - job: PostDeploymentReviewJob
+      displayName: 'Review Deployed Infrastructure'
 
-    displayName: 'Review Deployed Infrastructure'
-
-    steps:
-
-
-    # ----------------------------------------------------------
-    # Terraform Init
-    # ----------------------------------------------------------
-
-    - task: TerraformTask@5
-
-      displayName: 'Terraform Initialization'
-
-      inputs:
-        provider: 'azurerm'
-        command: 'init'
-        workingDirectory: '$(terraformWorkingDirectory)'
-        backendServiceArm: '$(serviceConnection)'
-        backendAzureRmResourceGroupName: '$(ResourceGroupName)'
-        backendAzureRmStorageAccountName: '$(StorageAccountName)'
-        backendAzureRmContainerName: '$(ContainerName)'
-        backendAzureRmKey: '$(backendKey)'
+      steps:
 
 
-    # ----------------------------------------------------------
-    # Post Deployment Terraform Plan
-    # ----------------------------------------------------------
+      # ----------------------------------------------------------
+      # Terraform Init
+      # ----------------------------------------------------------
 
-    - task: TerraformTask@5
+      - task: TerraformTask@5
 
-      displayName: 'Post Deployment Review'
+        displayName: 'Terraform Initialization'
 
-      inputs:
-        provider: 'azurerm'
-        command: 'plan'
-        workingDirectory: '$(terraformWorkingDirectory)'
-        environmentServiceNameAzureRM: '$(serviceConnection)'
-        commandOptions: '-input=false'
+        inputs:
+          provider: 'azurerm'
+          command: 'init'
+          workingDirectory: '$(terraformWorkingDirectory)'
+          backendServiceArm: '$(serviceConnection)'
+          backendAzureRmResourceGroupName: '$(ResourceGroupName)'
+          backendAzureRmStorageAccountName: '$(StorageAccountName)'
+          backendAzureRmContainerName: '$(ContainerName)'
+          backendAzureRmKey: '$(backendKey)'
 
-      env:
 
-        TF_VAR_key_vault_principal_id: $(key_vault_principal_id)
+      # ----------------------------------------------------------
+      # Post Deployment Terraform Plan
+      # ----------------------------------------------------------
+
+      - task: TerraformTask@5
+
+        displayName: 'Post Deployment Review'
+
+        inputs:
+          provider: 'azurerm'
+          command: 'plan'
+          workingDirectory: '$(terraformWorkingDirectory)'
+          environmentServiceNameAzureRM: '$(serviceConnection)'
+          commandOptions: '-input=false'
+
+        env:
+
+          TF_VAR_key_vault_principal_id: $(key_vault_principal_id)
