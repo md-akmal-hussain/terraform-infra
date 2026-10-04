@@ -10,7 +10,7 @@ parameters:
 stages:
   - stage: SecurityValidation
 
-    displayName: 'TFLint Validation'
+    displayName: 'Scanning Validation'
 
     dependsOn:
       - TerraformInitAndValidateFmt
