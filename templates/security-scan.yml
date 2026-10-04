@@ -1,0 +1,303 @@
+# ==============================================================
+# STAGE 2
+# TFLINT
+# ==============================================================
+
+- stage: TFLint
+
+  displayName: 'TFLint Validation'
+
+  dependsOn:
+    - TerraformInitAndValidateFmt
+
+  condition: and(
+    always(),
+    eq('${{ parameters.runTFLint }}', 'true'))
+
+  pool:
+    name: $(poolName)
+
+  jobs:
+
+  - job: TFLintJob
+
+    displayName: 'TFLint Security Validation'
+
+    steps:
+
+    - task: PowerShell@2
+      displayName: 'Run TFLint'
+
+      inputs:
+        targetType: inline
+        workingDirectory: '$(terraformWorkingDirectory)'
+
+        script: |
+
+          Write-Host "========================================="
+          Write-Host "Running TFLint..."
+          Write-Host "========================================="
+
+          tflint --recursive
+          exit 0
+
+
+# ==============================================================
+# STAGE 3
+# CHECKOV
+# ==============================================================
+
+- stage: Checkov
+
+  displayName: 'Checkov Security Scan'
+
+  dependsOn:
+    - TerraformInitAndValidateFmt
+
+  condition: and(
+    always(),
+    eq('${{ parameters.runCheckov }}', 'true'))
+
+  pool:
+    name: $(poolName)
+
+  jobs:
+
+  - job: CheckovJob
+
+    displayName: 'Checkov Security Scan'
+
+    steps:
+
+    - task: PowerShell@2
+      displayName: 'Run Checkov'
+
+      inputs:
+        targetType: inline
+        workingDirectory: '$(terraformWorkingDirectory)'
+
+        script: |
+
+          Write-Host "========================================="
+          Write-Host "Running Checkov..."
+          Write-Host "========================================="
+
+          checkov -d . --soft-fail --quiet
+
+
+# ==============================================================
+# STAGE 4
+# TFSEC
+# ==============================================================
+
+- stage: Tfsec
+
+  displayName: 'tfsec Security Scan'
+
+  dependsOn:
+    - TerraformInitAndValidateFmt
+
+  condition: and(
+    always(),
+    eq('${{ parameters.runTfsec }}', 'true'))
+
+  pool:
+    name: $(poolName)
+
+  jobs:
+
+  - job: TfsecJob
+
+    displayName: 'tfsec Security Scan'
+
+    steps:
+
+    - task: PowerShell@2
+      displayName: 'Run tfsec'
+
+      inputs:
+        targetType: inline
+        workingDirectory: '$(terraformWorkingDirectory)'
+
+        script: |
+
+          Write-Host "========================================="
+          Write-Host "Running tfsec..."
+          Write-Host "========================================="
+
+          tfsec .
+
+
+# ==============================================================
+# STAGE 5
+# TERRASCAN
+# ==============================================================
+
+- stage: Terrascan
+
+  displayName: 'Terrascan Security Scan'
+
+  dependsOn:
+    - TerraformInitAndValidateFmt
+
+  condition: and(
+    always(),
+    eq('${{ parameters.runTerrascan }}', 'true'))
+
+  pool:
+    name: $(poolName)
+
+  jobs:
+
+  - job: TerrascanJob
+
+    displayName: 'Terrascan Security Scan'
+
+    steps:
+
+    - task: PowerShell@2
+      displayName: 'Run Terrascan'
+
+      inputs:
+        targetType: inline
+        workingDirectory: '$(terraformWorkingDirectory)'
+
+        script: |
+
+          Write-Host "========================================="
+          Write-Host "Running Terrascan..."
+          Write-Host "========================================="
+
+          terrascan scan -t azure --soft-fail
+
+          exit 0
+
+
+# ==============================================================
+# STAGE 6
+# GITLEAKS
+# ==============================================================
+
+- stage: Gitleaks
+
+  displayName: 'Gitleaks Secret Scan'
+
+  dependsOn:
+    - TerraformInitAndValidateFmt
+
+  condition: and(
+    always(),
+    eq('${{ parameters.runGitleaks }}', 'true'))
+
+  pool:
+    name: $(poolName)
+
+  jobs:
+
+  - job: GitleaksJob
+
+    displayName: 'Gitleaks Secret Scan'
+
+    steps:
+
+    - task: PowerShell@2
+      displayName: 'Run Gitleaks'
+
+      inputs:
+        targetType: inline
+
+        script: |
+
+          Write-Host "========================================="
+          Write-Host "Running Gitleaks..."
+          Write-Host "========================================="
+
+          gitleaks detect `
+            --source "$(Build.SourcesDirectory)" `
+            --no-banner `
+            --exit-code 0
+
+
+# ==============================================================
+# STAGE 7
+# TRUFFLEHOG
+# ==============================================================
+
+- stage: TruffleHog
+
+  displayName: 'TruffleHog Secret Scan'
+
+  dependsOn:
+    - TerraformInitAndValidateFmt
+
+  condition: and(
+    always(),
+    eq('${{ parameters.runTruffleHog }}', 'true'))
+
+  pool:
+    name: $(poolName)
+
+  jobs:
+
+  - job: TruffleHogJob
+
+    displayName: 'TruffleHog Secret Scan'
+
+    steps:
+
+    - task: PowerShell@2
+      displayName: 'Run TruffleHog'
+
+      inputs:
+        targetType: inline
+
+        script: |
+
+          Write-Host "========================================="
+          Write-Host "Running TruffleHog..."
+          Write-Host "========================================="
+
+          trufflehog filesystem "$(Build.SourcesDirectory)"
+          exit 0
+
+# ==============================================================
+# STAGE 8
+# TRIVY
+# ==============================================================
+
+- stage: Trivy
+
+  displayName: 'Trivy Vulnerability Scan'
+
+  dependsOn:
+    - TerraformInitAndValidateFmt
+
+  condition: and(
+    always(),
+    eq('${{ parameters.runTrivy }}', 'true'))
+
+  pool:
+    name: $(poolName)
+
+  jobs:
+
+  - job: TrivyJob
+
+    displayName: 'Trivy Vulnerability Scan'
+
+    steps:
+
+    - task: PowerShell@2
+      displayName: 'Run Trivy'
+
+      inputs:
+        targetType: inline
+
+        script: |
+
+          Write-Host "========================================="
+          Write-Host "Running Trivy..."
+          Write-Host "========================================="
+
+          trivy fs . "$(Build.SourcesDirectory)"
+          exit 0

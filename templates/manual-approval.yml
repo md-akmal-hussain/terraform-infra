@@ -1,0 +1,48 @@
+# ==============================================================
+# STAGE 11
+# MANUAL APPROVAL
+# ==============================================================
+
+- stage: ManualApproval
+
+  displayName: 'Manual Approval'
+
+  dependsOn:
+    - TerraformPlan
+
+  condition: and(
+    always(),
+    eq('${{ parameters.runManualApproval }}', 'true'),
+    eq(dependencies.TerraformPlan.result, 'Succeeded'))
+
+  jobs:
+
+  - job: ManualApprovalJob
+
+    displayName: 'Manual Approval'
+
+    pool: server
+
+    timeoutInMinutes: 1440
+
+    steps:
+
+    - task: ManualValidation@1
+
+      displayName: 'Approve Terraform Changes'
+
+      inputs:
+
+        notifyUsers: |
+          $(Build.RequestedForEmail)
+
+        instructions: |
+
+          Terraform Plan completed successfully.
+
+          Please review the Terraform Plan.
+
+          Approve this step only if the
+          changes are ready for deployment.
+
+        onTimeout: 'reject'

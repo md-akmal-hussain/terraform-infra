@@ -1,0 +1,83 @@
+# ==============================================================
+# STAGE 10
+# INFRACOST
+# ==============================================================
+
+- stage: Infracost
+
+  displayName: 'Infracost Cost Estimation'
+
+  dependsOn:
+    - TerraformPlan
+
+  condition: and(
+    always(),
+    eq('${{ parameters.runInfracost }}', 'true'),
+    eq(dependencies.TerraformPlan.result, 'Succeeded'))
+
+  pool:
+    name: $(poolName)
+
+  jobs:
+
+  - job: InfracostJob
+
+    displayName: 'Infracost Cost Estimation'
+
+    steps:
+
+
+    # ----------------------------------------------------------
+    # Download Terraform Plan JSON
+    # ----------------------------------------------------------
+
+    - task: DownloadPipelineArtifact@2
+
+      displayName: 'Download Terraform Plan JSON'
+
+      inputs:
+        artifact: 'terraform-plan-json'
+        path: '$(Pipeline.Workspace)/terraform-plan'
+
+
+    # ----------------------------------------------------------
+    # Run Infracost
+    # ----------------------------------------------------------
+
+    - task: PowerShell@2
+
+      displayName: 'Run Infracost'
+
+      inputs:
+        targetType: inline
+
+        script: |
+
+          $planFile =
+            "$(Pipeline.Workspace)\terraform-plan\tfplan.json"
+
+
+          if (!(Test-Path $planFile)) {
+
+              Write-Error "tfplan.json NOT FOUND"
+
+              exit 1
+          }
+
+
+          cd "$(Pipeline.Workspace)\terraform-plan"
+
+
+          infracost scan .\tfplan.json
+
+
+          if ($LASTEXITCODE -ne 0) {
+
+              Write-Error "Infracost scan failed."
+
+              exit $LASTEXITCODE
+          }
+
+      env:
+
+        INFRACOST_API_KEY: $(INFRACOST_API_KEY)
