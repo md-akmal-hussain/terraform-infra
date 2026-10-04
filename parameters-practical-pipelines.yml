@@ -285,9 +285,7 @@ stages:
           Write-Host "Running TFLint..."
           Write-Host "========================================="
 
-          tflint --init
           tflint --recursive
-
           exit 0
 
 
@@ -507,7 +505,6 @@ stages:
           Write-Host "========================================="
 
           trufflehog filesystem "$(Build.SourcesDirectory)"
-
           exit 0
 
 
@@ -551,7 +548,6 @@ stages:
           Write-Host "========================================="
 
           trivy fs . "$(Build.SourcesDirectory)"
-
           exit 0
 
 
@@ -1100,30 +1096,7 @@ stages:
         command: 'apply'
         workingDirectory: '$(terraformWorkingDirectory)'
         environmentServiceNameAzureRM: '$(serviceConnection)'
-        commandOptions: 'tfplan'
-
-
-# ============================================================
-# Terraform Import - Existing Key Vault Secrets
-# ============================================================
-
-    - task: AzureCLI@2
-      displayName: 'Import Existing Key Vault Secrets'
-      inputs:
-        connectedServiceNameARM: '$(serviceConnection)'
-        scriptType: 'ps'
-        scriptLocation: 'inlineScript'
-        inlineScript: |
-
-          terraform import 'module.key_vault.azurerm_key_vault_secret.vm_username["vm1"]' 'https://kv-axion-systems-dev-01.vault.azure.net/secrets/vm1-username/9781f70024004f7ca95231e72c1876bb'
-
-          terraform import 'module.key_vault.azurerm_key_vault_secret.vm_username["vm2"]' 'https://kv-axion-systems-dev-01.vault.azure.net/secrets/vm2-username/5bc225d58d4d431cb8eb8b246e15a2c9'
-
-          terraform import 'module.key_vault.azurerm_key_vault_secret.vm_password["vm1"]' 'https://kv-axion-systems-dev-01.vault.azure.net/secrets/vm1-password/12ed6154265447bea6178acfab33ecb0'
-
-        workingDirectory: '$(terraformWorkingDirectory)'       
-
-
+        commandOptions: 'tfplan'       
 
 # ===============================================================
 # STAGE 13
