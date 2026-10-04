@@ -51,40 +51,11 @@ parameters:
   # SECURITY SCANS
   # ------------------------------------------------------------
 
-  - name: runTFLint
-    displayName: '01- Run TFLint?'
+  - name: SecurityValidation
+    displayName: Run Security Scan?
     type: boolean
     default: true
 
-  - name: runCheckov
-    displayName: '02- Run Checkov?'
-    type: boolean
-    default: true
-
-  - name: runTfsec
-    displayName: '03- Run tfsec?'
-    type: boolean
-    default: true
-
-  - name: runTerrascan
-    displayName: '04- Run Terrascan?'
-    type: boolean
-    default: true
-
-  - name: runGitleaks
-    displayName: '05- Run Gitleaks?'
-    type: boolean
-    default: true
-
-  - name: runTruffleHog
-    displayName: '06- Run TruffleHog?'
-    type: boolean
-    default: true
-
-  - name: runTrivy
-    displayName: '07- Run Trivy?'
-    type: boolean
-    default: true
 
 
   # ------------------------------------------------------------

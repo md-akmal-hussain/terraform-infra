@@ -14,7 +14,7 @@ stages:
 
     displayName: 'Terraform Plan'
 
-    condition: and(
+    condition: and(     
       always(),
       eq('${{ parameters.runTerraformPlan }}', 'true'))
 
