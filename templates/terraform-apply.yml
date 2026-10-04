@@ -4,7 +4,7 @@
 # ==============================================================
 
 parameters:
-- name: TerraformApply
+- name: runTerraformApply
   type: boolean
   default: true
 

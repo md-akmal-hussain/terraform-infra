@@ -5,7 +5,7 @@
 
 parameters:
 
-- name: ManualApproval
+- name: runManualApproval
   type: boolean
   default: true
 
