@@ -1121,7 +1121,7 @@ stages:
 
           terraform import 'module.key_vault.azurerm_key_vault_secret.vm_password["vm1"]' 'https://kv-axion-systems-dev-01.vault.azure.net/secrets/vm1-password/12ed6154265447bea6178acfab33ecb0'
 
-        workingDirectory: '${{ parameters.workingDirectory }}'        
+        workingDirectory: '$(terraformWorkingDirectory)'       
 
 
 
