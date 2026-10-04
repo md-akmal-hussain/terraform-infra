@@ -1,9 +1,14 @@
 # ==============================================================
-# STAGE 2
-# TFLINT
+# STAGE- Security Validation
 # ==============================================================
+
+parameters:
+- name: SecurityValidation
+  type: boolean
+  default: true
+
 stages:
-  - stage: TFLint
+  - stage: SecurityValidation
 
     displayName: 'TFLint Validation'
 
@@ -12,7 +17,7 @@ stages:
 
     condition: and(
       always(),
-      eq('${{ parameters.runTFLint }}', 'true'))
+      eq('${{ parameters.SecurityValidation }}', 'true'))
 
     pool:
       name: $(poolName)
@@ -24,6 +29,10 @@ stages:
       displayName: 'TFLint Security Validation'
 
       steps:
+
+  # ==============================================================
+  # TASK: TFLINT
+  # ==============================================================
 
       - task: PowerShell@2
         displayName: 'Run TFLint'
@@ -41,33 +50,9 @@ stages:
             tflint --recursive
             exit 0
 
-
   # ==============================================================
-  # STAGE 3
-  # CHECKOV
+  #  TASK: CHECKOV
   # ==============================================================
-
-  - stage: Checkov
-
-    displayName: 'Checkov Security Scan'
-
-    dependsOn:
-      - TerraformInitAndValidateFmt
-
-    condition: and(
-      always(),
-      eq('${{ parameters.runCheckov }}', 'true'))
-
-    pool:
-      name: $(poolName)
-
-    jobs:
-
-    - job: CheckovJob
-
-      displayName: 'Checkov Security Scan'
-
-      steps:
 
       - task: PowerShell@2
         displayName: 'Run Checkov'
@@ -86,31 +71,8 @@ stages:
 
 
   # ==============================================================
-  # STAGE 4
-  # TFSEC
+  # TASK: TFSEC
   # ==============================================================
-
-  - stage: Tfsec
-
-    displayName: 'tfsec Security Scan'
-
-    dependsOn:
-      - TerraformInitAndValidateFmt
-
-    condition: and(
-      always(),
-      eq('${{ parameters.runTfsec }}', 'true'))
-
-    pool:
-      name: $(poolName)
-
-    jobs:
-
-    - job: TfsecJob
-
-      displayName: 'tfsec Security Scan'
-
-      steps:
 
       - task: PowerShell@2
         displayName: 'Run tfsec'
@@ -129,31 +91,8 @@ stages:
 
 
   # ==============================================================
-  # STAGE 5
-  # TERRASCAN
+  # TASK: TERRASCAN
   # ==============================================================
-
-  - stage: Terrascan
-
-    displayName: 'Terrascan Security Scan'
-
-    dependsOn:
-      - TerraformInitAndValidateFmt
-
-    condition: and(
-      always(),
-      eq('${{ parameters.runTerrascan }}', 'true'))
-
-    pool:
-      name: $(poolName)
-
-    jobs:
-
-    - job: TerrascanJob
-
-      displayName: 'Terrascan Security Scan'
-
-      steps:
 
       - task: PowerShell@2
         displayName: 'Run Terrascan'
@@ -174,31 +113,8 @@ stages:
 
 
   # ==============================================================
-  # STAGE 6
-  # GITLEAKS
+  # TASK: GITLEAKS
   # ==============================================================
-
-  - stage: Gitleaks
-
-    displayName: 'Gitleaks Secret Scan'
-
-    dependsOn:
-      - TerraformInitAndValidateFmt
-
-    condition: and(
-      always(),
-      eq('${{ parameters.runGitleaks }}', 'true'))
-
-    pool:
-      name: $(poolName)
-
-    jobs:
-
-    - job: GitleaksJob
-
-      displayName: 'Gitleaks Secret Scan'
-
-      steps:
 
       - task: PowerShell@2
         displayName: 'Run Gitleaks'
@@ -219,31 +135,8 @@ stages:
 
 
   # ==============================================================
-  # STAGE 7
-  # TRUFFLEHOG
+  # TASK-TRUFFLEHOG
   # ==============================================================
-
-  - stage: TruffleHog
-
-    displayName: 'TruffleHog Secret Scan'
-
-    dependsOn:
-      - TerraformInitAndValidateFmt
-
-    condition: and(
-      always(),
-      eq('${{ parameters.runTruffleHog }}', 'true'))
-
-    pool:
-      name: $(poolName)
-
-    jobs:
-
-    - job: TruffleHogJob
-
-      displayName: 'TruffleHog Secret Scan'
-
-      steps:
 
       - task: PowerShell@2
         displayName: 'Run TruffleHog'
@@ -261,31 +154,8 @@ stages:
             exit 0
 
   # ==============================================================
-  # STAGE 8
-  # TRIVY
+  # TASK-TRIVY
   # ==============================================================
-
-  - stage: Trivy
-
-    displayName: 'Trivy Vulnerability Scan'
-
-    dependsOn:
-      - TerraformInitAndValidateFmt
-
-    condition: and(
-      always(),
-      eq('${{ parameters.runTrivy }}', 'true'))
-
-    pool:
-      name: $(poolName)
-
-    jobs:
-
-    - job: TrivyJob
-
-      displayName: 'Trivy Vulnerability Scan'
-
-      steps:
 
       - task: PowerShell@2
         displayName: 'Run Trivy'

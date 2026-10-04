@@ -2,6 +2,13 @@
 # STAGE 11
 # MANUAL APPROVAL
 # ==============================================================
+
+parameters:
+
+- name: ManualApproval
+  type: boolean
+  default: true
+
 stages:
   - stage: ManualApproval
 

@@ -2,6 +2,13 @@
 # STAGE 9
 # TERRAFORM PLAN
 # ==============================================================
+
+
+parameters:
+- name: TerraformPlan
+  type: boolean
+  default: true
+
 stages:
   - stage: TerraformPlan
 

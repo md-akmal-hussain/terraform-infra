@@ -2,6 +2,12 @@
 # STAGE 12
 # TERRAFORM APPLY
 # ==============================================================
+
+parameters:
+- name: TerraformApply
+  type: boolean
+  default: true
+
 stages:
   - stage: TerraformApply
 

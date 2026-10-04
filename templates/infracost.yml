@@ -2,6 +2,13 @@
 # STAGE 10
 # INFRACOST
 # ==============================================================
+
+parameters:
+
+- name: runInfracost
+  type: boolean
+  default: true
+
 stages:
   - stage: Infracost
 
