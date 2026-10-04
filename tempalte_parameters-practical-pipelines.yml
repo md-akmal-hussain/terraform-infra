@@ -1,0 +1,200 @@
+# ===============================================================
+
+# template-parameters-practical-pipelines
+
+# ===============================================================
+
+
+name: template-parameters-practical-pipelines-$(Date:ddMMyyyy).$(Rev:r)
+
+trigger:
+  branches:
+    include:
+      - feature/*
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+# ===============================================================
+# PARAMETERS
+# ===============================================================
+
+parameters:
+
+  # ------------------------------------------------------------
+  # Environment
+  # ------------------------------------------------------------
+
+  - name: environments
+    displayName: Select Environment
+    type: string
+    default: dev
+    values:
+      - dev
+      - prod
+
+
+  # ------------------------------------------------------------
+  # TERRAFORM INIT / VALIDATE / FMT
+  # ------------------------------------------------------------
+
+  - name: runTerraformInitValidateFmt
+    displayName: 'Run Terraform Init Validate Fmt?'
+    type: boolean
+    default: true
+
+
+  # ------------------------------------------------------------
+  # SECURITY SCANS
+  # ------------------------------------------------------------
+
+  - name: SecurityValidation
+    displayName: Run Security Scan?
+    type: boolean
+    default: true
+
+
+
+  # ------------------------------------------------------------
+  # TERRAFORM PLAN
+  # ------------------------------------------------------------
+
+  - name: runTerraformPlan
+    displayName: 'Run Terraform Plan?'
+    type: boolean
+    default: true
+
+
+  # ------------------------------------------------------------
+  # INFRACOST
+  # ------------------------------------------------------------
+
+  - name: runInfracost
+    displayName: 'Run Infracost?'
+    type: boolean
+    default: true
+
+
+  # ------------------------------------------------------------
+  # MANUAL APPROVAL
+  # ------------------------------------------------------------
+
+  - name: runManualApproval
+    displayName: 'Run Manual Approval?'
+    type: boolean
+    default: true
+
+
+  # ------------------------------------------------------------
+  # TERRAFORM APPLY
+  # ------------------------------------------------------------
+
+  - name: runTerraformApply
+    displayName: 'Run Terraform Apply?'
+    type: boolean
+    default: true
+
+
+  # ------------------------------------------------------------
+  # POST DEPLOYMENT REVIEW
+  # ------------------------------------------------------------
+
+  - name: runPostDeploymentReview
+    displayName: 'Run Post Deployment Review?'
+    type: boolean
+    default: true
+
+
+
+# ==============================================================
+# VARIABLES
+# ==============================================================
+
+
+variables:
+
+  - group: Terraform-Variables
+
+  - name: serviceConnection
+    value: 'Yaml_Svc'
+
+  - name: poolName
+    value: 'Yaml_Pool'
+
+  - name: ResourceGroupName
+    value: 'pipelinestg'
+
+  - name: StorageAccountName
+    value: 'stgnagpipeline'
+
+  - name: ContainerName
+    value: 'production-container'
+
+  - name: terraformWorkingDirectory
+    value: '$(System.DefaultWorkingDirectory)/environments/${{ parameters.environments }}'
+
+  - name: backendKey
+    value: '${{ parameters.environments }}/axion-systems-${{ parameters.environments }}.terraform.tfstate'
+
+# ==============================================================
+# STAGES
+# ==============================================================
+
+stages:
+
+# --------------------------------------------------------------
+# STAGE 1
+# --------------------------------------------------------------
+
+- template: templates/terraform-init-validate-fmt.yml
+
+
+# --------------------------------------------------------------
+# STAGES 2-7
+# SECURITY SCANS
+# --------------------------------------------------------------
+
+- template: templates/security-scan.yml
+
+
+# --------------------------------------------------------------
+# STAGE 9
+# TERRAFORM PLAN
+# --------------------------------------------------------------
+
+- template: templates/terraform-plan.yml
+
+
+# --------------------------------------------------------------
+# STAGE 10
+# INFRACOST
+# --------------------------------------------------------------
+
+- template: templates/infracost.yml
+
+
+# --------------------------------------------------------------
+# STAGE 11
+# MANUAL APPROVAL
+# --------------------------------------------------------------
+
+- template: templates/manual-approval.yml
+
+
+# --------------------------------------------------------------
+# STAGE 12
+# TERRAFORM APPLY
+# --------------------------------------------------------------
+
+- template: templates/terraform-apply.yml
+
+
+# --------------------------------------------------------------
+# STAGE 13
+# POST DEPLOYMENT REVIEW
+# --------------------------------------------------------------
+
+- template: templates/post-deployment-review.yml

@@ -1,0 +1,73 @@
+# ==============================================================
+# STAGE 13
+# POST DEPLOYMENT REVIEW
+# ==============================================================
+
+parameters:
+
+- name: runPostDeploymentReview
+  type: boolean
+  default: true
+
+stages:
+  - stage: PostDeploymentReview
+
+    displayName: 'Post Deployment Review'
+
+    dependsOn:
+      - TerraformApply
+
+    condition: and(
+      always(),
+      eq('${{ parameters.runPostDeploymentReview }}', 'true'),
+      eq(dependencies.TerraformApply.result, 'Succeeded'))
+
+    pool:
+      name: $(poolName)
+
+    jobs:
+
+    - job: PostDeploymentReviewJob
+
+      displayName: 'Review Deployed Infrastructure'
+
+      steps:
+
+
+      # ----------------------------------------------------------
+      # Terraform Init
+      # ----------------------------------------------------------
+
+      - task: TerraformTask@5
+
+        displayName: 'Terraform Initialization'
+
+        inputs:
+          provider: 'azurerm'
+          command: 'init'
+          workingDirectory: '$(terraformWorkingDirectory)'
+          backendServiceArm: '$(serviceConnection)'
+          backendAzureRmResourceGroupName: '$(ResourceGroupName)'
+          backendAzureRmStorageAccountName: '$(StorageAccountName)'
+          backendAzureRmContainerName: '$(ContainerName)'
+          backendAzureRmKey: '$(backendKey)'
+
+
+      # ----------------------------------------------------------
+      # Post Deployment Terraform Plan
+      # ----------------------------------------------------------
+
+      - task: TerraformTask@5
+
+        displayName: 'Post Deployment Review'
+
+        inputs:
+          provider: 'azurerm'
+          command: 'plan'
+          workingDirectory: '$(terraformWorkingDirectory)'
+          environmentServiceNameAzureRM: '$(serviceConnection)'
+          commandOptions: '-input=false'
+
+        env:
+
+          TF_VAR_key_vault_principal_id: $(key_vault_principal_id)

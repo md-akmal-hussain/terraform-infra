@@ -1,0 +1,76 @@
+# ==============================================================
+# STAGE 1
+# TERRAFORM INIT + VALIDATE + FMT
+# ==============================================================
+
+parameters:
+
+- name: runTerraformInitValidateFmt
+  type: boolean
+  default: true
+
+stages:
+  - stage: TerraformInitAndValidateFmt
+
+    displayName: 'Terraform Init Validate Fmt'
+
+    condition: and(
+      always(),
+      eq('${{ parameters.runTerraformInitValidateFmt }}', 'true'))
+
+    pool:
+      name: $(poolName)
+
+    jobs:
+
+    - job: TerraformInitValidateFmtJob
+
+      displayName: 'Terraform Init Validate Fmt'
+
+      steps:
+
+      # ----------------------------------------------------------
+      # Terraform Init
+      # ----------------------------------------------------------
+
+      - task: TerraformTask@5
+        displayName: 'Terraform Initialization'
+
+        inputs:
+          provider: 'azurerm'
+          command: 'init'
+          workingDirectory: '$(terraformWorkingDirectory)'
+          backendServiceArm: '$(serviceConnection)'
+          backendAzureRmResourceGroupName: '$(ResourceGroupName)'
+          backendAzureRmStorageAccountName: '$(StorageAccountName)'
+          backendAzureRmContainerName: '$(ContainerName)'
+          backendAzureRmKey: '$(backendKey)'
+
+
+      # ----------------------------------------------------------
+      # Terraform Validate
+      # ----------------------------------------------------------
+
+      - task: TerraformTask@5
+        displayName: 'Terraform Validation'
+
+        inputs:
+          provider: 'azurerm'
+          command: 'validate'
+          workingDirectory: '$(terraformWorkingDirectory)'
+
+
+      # ----------------------------------------------------------
+      # Terraform Format
+      # ----------------------------------------------------------
+
+      - task: TerraformTask@5
+        displayName: 'Terraform Formatting'
+
+        inputs:
+          provider: 'azurerm'
+          command: 'custom'
+          workingDirectory: '$(terraformWorkingDirectory)'
+          outputTo: 'console'
+          customCommand: 'fmt'
+          environmentServiceNameAzureRM: '$(serviceConnection)'

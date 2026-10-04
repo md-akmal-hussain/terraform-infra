@@ -1,0 +1,303 @@
+# ==============================================================
+# STAGE 9
+# TERRAFORM PLAN
+# ==============================================================
+
+
+parameters:
+- name: runTerraformPlan
+  type: boolean
+  default: true
+
+stages:
+  - stage: TerraformPlan
+
+    displayName: 'Terraform Plan'
+
+    condition: and(     
+      always(),
+      eq('${{ parameters.runTerraformPlan }}', 'true'))
+
+    pool:
+      name: $(poolName)
+
+    jobs:
+
+    - job: TerraformPlanJob
+
+      displayName: 'Terraform Plan'
+
+      steps:
+
+
+      # ----------------------------------------------------------
+      # Terraform Init
+      # ----------------------------------------------------------
+
+      - task: TerraformTask@5
+
+        displayName: 'Terraform Initialization'
+
+        inputs:
+          provider: 'azurerm'
+          command: 'init'
+          workingDirectory: '$(terraformWorkingDirectory)'
+          backendServiceArm: '$(serviceConnection)'
+          backendAzureRmResourceGroupName: '$(ResourceGroupName)'
+          backendAzureRmStorageAccountName: '$(StorageAccountName)'
+          backendAzureRmContainerName: '$(ContainerName)'
+          backendAzureRmKey: '$(backendKey)'
+
+
+      # ----------------------------------------------------------
+      # Validate Key Vault Principal ID
+      # ----------------------------------------------------------
+
+      - task: PowerShell@2
+
+        displayName: 'Validate Key Vault Principal ID'
+
+        inputs:
+          targetType: inline
+
+          script: |
+
+            if ([string]::IsNullOrWhiteSpace("$(key_vault_principal_id)")) {
+
+                Write-Error "key_vault_principal_id is missing from Variable Group."
+
+                exit 1
+            }
+
+            Write-Host "key_vault_principal_id is available."
+            Write-Host "Terraform variable validation passed."
+
+
+      # ----------------------------------------------------------
+      # Create Terraform Credentials File
+      # ----------------------------------------------------------
+
+      - task: PowerShell@2
+
+        displayName: 'Create Terraform Credentials File'
+
+        inputs:
+          targetType: inline
+          workingDirectory: '$(terraformWorkingDirectory)'
+
+          script: |
+
+            $terraformVars = @{
+
+              vm_admin_usernames = @{
+
+                vm1 = $env:VM1_USERNAME
+                vm2 = $env:VM2_USERNAME
+              }
+
+              vm_admin_passwords = @{
+
+                vm1 = $env:VM1_PASSWORD
+                vm2 = $env:VM2_PASSWORD
+              }
+
+              postgres_admin_usernames = @{
+
+                psql1 = $env:PSQL1_USERNAME
+              }
+
+              postgres_admin_passwords = @{
+
+                psql1 = $env:PSQL1_PASSWORD
+              }
+            }
+
+
+            $json = $terraformVars | ConvertTo-Json -Depth 10
+
+
+            $utf8NoBom =
+              New-Object System.Text.UTF8Encoding($false)
+
+
+            [System.IO.File]::WriteAllText(
+              "$(terraformWorkingDirectory)\pipeline.auto.tfvars.json",
+              $json,
+              $utf8NoBom
+            )
+
+
+            Write-Host "Terraform credentials file created successfully."
+
+        env:
+
+          VM1_USERNAME: $(vm1_username)
+          VM1_PASSWORD: $(vm1_password)
+
+          VM2_USERNAME: $(vm2_username)
+          VM2_PASSWORD: $(vm2_password)
+
+          PSQL1_USERNAME: $(psql1_username)
+          PSQL1_PASSWORD: $(psql1_password)
+
+
+      # ----------------------------------------------------------
+      # Terraform Plan
+      # ----------------------------------------------------------
+
+      - task: TerraformTask@5
+
+        displayName: 'Terraform Plan'
+
+        inputs:
+          provider: 'azurerm'
+          command: 'plan'
+          workingDirectory: '$(terraformWorkingDirectory)'
+          environmentServiceNameAzureRM: '$(serviceConnection)'
+          commandOptions: '-out=tfplan -input=false -var-file=pipeline.auto.tfvars.json'
+
+        env:
+
+          TF_VAR_key_vault_principal_id: $(key_vault_principal_id)
+
+
+      # ----------------------------------------------------------
+      # Verify Binary Terraform Plan
+      # ----------------------------------------------------------
+
+      - task: PowerShell@2
+
+        displayName: 'Verify Terraform Plan'
+
+        inputs:
+          targetType: inline
+          workingDirectory: '$(terraformWorkingDirectory)'
+
+          script: |
+
+            Write-Host "========================================="
+            Write-Host "Checking Terraform plan file..."
+            Write-Host "========================================="
+
+
+            $planFile =
+              "$(terraformWorkingDirectory)\tfplan"
+
+
+            Write-Host "Expected plan file:"
+            Write-Host $planFile
+
+
+            if (Test-Path $planFile) {
+
+                Write-Host "========================================="
+                Write-Host "tfplan FOUND"
+                Write-Host "========================================="
+
+                Get-Item $planFile
+            }
+
+            else {
+
+                Write-Error "tfplan NOT FOUND"
+
+                exit 1
+            }
+
+
+      # ----------------------------------------------------------
+      # Create Terraform Plan JSON
+      # ----------------------------------------------------------
+
+      - task: PowerShell@2
+
+        displayName: 'Create Terraform Plan JSON'
+
+        inputs:
+          targetType: inline
+          workingDirectory: '$(terraformWorkingDirectory)'
+
+          script: |
+
+            Write-Host "========================================="
+            Write-Host "Converting Terraform plan to JSON..."
+            Write-Host "========================================="
+
+
+            $planFile =
+              "$(terraformWorkingDirectory)\tfplan"
+
+
+            $jsonFile =
+              "$(terraformWorkingDirectory)\tfplan.json"
+
+
+            if (!(Test-Path $planFile)) {
+
+                Write-Error "tfplan file not found."
+
+                exit 1
+            }
+
+
+            cmd /c "terraform show -json tfplan > tfplan.json"
+
+
+            if (!(Test-Path $jsonFile)) {
+
+                Write-Error "tfplan.json was not created."
+
+                exit 1
+            }
+
+
+            $file = Get-Item $jsonFile
+
+
+            Write-Host "========================================="
+            Write-Host "Terraform Plan JSON Created"
+            Write-Host "========================================="
+
+
+            Write-Host "File:"
+            Write-Host $file.FullName
+
+
+            Write-Host "Size:"
+            Write-Host "$($file.Length) bytes"
+
+
+            if ($file.Length -eq 0) {
+
+                Write-Error "tfplan.json is EMPTY."
+
+                exit 1
+            }
+
+
+      # ----------------------------------------------------------
+      # Publish Binary tfplan
+      # ----------------------------------------------------------
+
+      - task: PublishPipelineArtifact@1
+
+        displayName: 'Publish Terraform Binary Plan'
+
+        inputs:
+          targetPath: '$(terraformWorkingDirectory)/tfplan'
+          artifact: 'terraform-binary-plan'
+          publishLocation: 'pipeline'
+
+
+      # ----------------------------------------------------------
+      # Publish Terraform Plan JSON
+      # ----------------------------------------------------------
+
+      - task: PublishPipelineArtifact@1
+
+        displayName: 'Publish Terraform Plan JSON'
+
+        inputs:
+          targetPath: '$(terraformWorkingDirectory)/tfplan.json'
+          artifact: 'terraform-plan-json'
+          publishLocation: 'pipeline'

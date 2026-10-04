@@ -1,0 +1,173 @@
+# ===============================================================
+# STAGE- Security Validation
+# ===============================================================
+
+parameters:
+- name: SecurityValidation
+  type: boolean
+  default: true
+
+stages:
+  - stage: SecurityValidation
+
+    displayName: 'Scanning Validation'
+
+    dependsOn:
+      - TerraformInitAndValidateFmt
+
+    condition: and(
+      always(),
+      eq('${{ parameters.SecurityValidation }}', 'true'))
+
+    pool:
+      name: $(poolName)
+
+    jobs:
+
+    - job: TFLintJob
+
+      displayName: 'TFLint Security Validation'
+
+      steps:
+
+  # ==============================================================
+  # TASK: TFLINT
+  # ==============================================================
+
+      - task: PowerShell@2
+        displayName: 'Run TFLint'
+
+        inputs:
+          targetType: inline
+          workingDirectory: '$(terraformWorkingDirectory)'
+
+          script: |
+
+            Write-Host "========================================="
+            Write-Host "Running TFLint..."
+            Write-Host "========================================="
+
+            tflint --recursive
+            exit 0
+
+  # ==============================================================
+  #  TASK: CHECKOV
+  # ==============================================================
+
+      - task: PowerShell@2
+        displayName: 'Run Checkov'
+
+        inputs:
+          targetType: inline
+          workingDirectory: '$(terraformWorkingDirectory)'
+
+          script: |
+
+            Write-Host "========================================="
+            Write-Host "Running Checkov..."
+            Write-Host "========================================="
+
+            checkov -d . --soft-fail --quiet
+
+
+  # ==============================================================
+  # TASK: TFSEC
+  # ==============================================================
+
+      - task: PowerShell@2
+        displayName: 'Run tfsec'
+
+        inputs:
+          targetType: inline
+          workingDirectory: '$(terraformWorkingDirectory)'
+
+          script: |
+
+            Write-Host "========================================="
+            Write-Host "Running tfsec..."
+            Write-Host "========================================="
+
+            tfsec .
+
+
+  # ==============================================================
+  # TASK: TERRASCAN
+  # ==============================================================
+
+      - task: PowerShell@2
+        displayName: 'Run Terrascan'
+
+        inputs:
+          targetType: inline
+          workingDirectory: '$(terraformWorkingDirectory)'
+
+          script: |
+
+            Write-Host "========================================="
+            Write-Host "Running Terrascan..."
+            Write-Host "========================================="
+
+            terrascan scan -t azure --soft-fail
+
+            exit 0
+
+
+  # ==============================================================
+  # TASK: GITLEAKS
+  # ==============================================================
+
+      - task: PowerShell@2
+        displayName: 'Run Gitleaks'
+
+        inputs:
+          targetType: inline
+
+          script: |
+
+            Write-Host "========================================="
+            Write-Host "Running Gitleaks..."
+            Write-Host "========================================="
+
+            gitleaks detect `
+              --source "$(Build.SourcesDirectory)" `
+              --no-banner `
+              --exit-code 0
+
+
+  # ==============================================================
+  # TASK-TRUFFLEHOG
+  # ==============================================================
+
+      - task: PowerShell@2
+        displayName: 'Run TruffleHog'
+
+        inputs:
+          targetType: inline
+
+          script: |
+
+            Write-Host "========================================="
+            Write-Host "Running TruffleHog..."
+            Write-Host "========================================="
+
+            trufflehog filesystem "$(Build.SourcesDirectory)"
+            exit 0
+
+  # ==============================================================
+  # TASK-TRIVY
+  # ==============================================================
+
+      - task: PowerShell@2
+        displayName: 'Run Trivy'
+
+        inputs:
+          targetType: inline
+
+          script: |
+
+            Write-Host "========================================="
+            Write-Host "Running Trivy..."
+            Write-Host "========================================="
+
+            trivy fs . "$(Build.SourcesDirectory)"
+            exit 0

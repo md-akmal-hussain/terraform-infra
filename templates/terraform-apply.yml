@@ -1,0 +1,120 @@
+# ==============================================================
+# STAGE 12
+# TERRAFORM APPLY
+# ==============================================================
+
+parameters:
+- name: runTerraformApply
+  type: boolean
+  default: true
+
+stages:
+  - stage: TerraformApply
+
+    displayName: 'Terraform Apply'
+
+    dependsOn:
+      - TerraformPlan
+      - ManualApproval
+
+    condition: and(
+      always(),
+      eq('${{ parameters.runTerraformApply }}', 'true'),
+      eq(dependencies.TerraformPlan.result, 'Succeeded'),
+      eq(dependencies.ManualApproval.result, 'Succeeded'),
+      eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+
+    pool:
+      name: $(poolName)
+
+    jobs:
+
+    - job: TerraformApplyJob
+
+      displayName: 'Terraform Apply'
+
+      steps:
+
+
+      # ----------------------------------------------------------
+      # Terraform Init
+      # ----------------------------------------------------------
+
+      - task: TerraformTask@5
+
+        displayName: 'Terraform Initialization'
+
+        inputs:
+          provider: 'azurerm'
+          command: 'init'
+          workingDirectory: '$(terraformWorkingDirectory)'
+          backendServiceArm: '$(serviceConnection)'
+          backendAzureRmResourceGroupName: '$(ResourceGroupName)'
+          backendAzureRmStorageAccountName: '$(StorageAccountName)'
+          backendAzureRmContainerName: '$(ContainerName)'
+          backendAzureRmKey: '$(backendKey)'
+
+
+      # ----------------------------------------------------------
+      # Download EXACT Approved Binary Plan
+      # ----------------------------------------------------------
+
+      - task: DownloadPipelineArtifact@2
+
+        displayName: 'Download Approved Terraform Plan'
+
+        inputs:
+          artifact: 'terraform-binary-plan'
+          path: '$(terraformWorkingDirectory)'
+
+
+      # ----------------------------------------------------------
+      # Verify Binary Plan
+      # ----------------------------------------------------------
+
+      - task: PowerShell@2
+
+        displayName: 'Verify Approved Terraform Plan'
+
+        inputs:
+          targetType: inline
+          workingDirectory: '$(terraformWorkingDirectory)'
+
+          script: |
+
+            Write-Host "========================================="
+            Write-Host "Checking approved Terraform plan..."
+            Write-Host "========================================="
+
+
+            $planFile =
+              "$(terraformWorkingDirectory)\tfplan"
+
+
+            if (!(Test-Path $planFile)) {
+
+                Write-Error "Approved tfplan NOT FOUND."
+
+                exit 1
+            }
+
+
+            Write-Host "Approved tfplan FOUND."
+
+            Get-Item $planFile
+
+
+      # ----------------------------------------------------------
+      # Apply EXACT Approved Plan
+      # ----------------------------------------------------------
+
+      - task: TerraformTask@5
+
+        displayName: 'Terraform Apply Approved Plan'
+
+        inputs:
+          provider: 'azurerm'
+          command: 'apply'
+          workingDirectory: '$(terraformWorkingDirectory)'
+          environmentServiceNameAzureRM: '$(serviceConnection)'
+          commandOptions: 'tfplan'
