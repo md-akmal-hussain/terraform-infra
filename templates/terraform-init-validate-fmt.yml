@@ -2,6 +2,13 @@
 # STAGE 1
 # TERRAFORM INIT + VALIDATE + FMT
 # ==============================================================
+
+parameters:
+
+- name: runTerraformInitValidateFmt
+  type: boolean
+  default: true
+
 stages:
   - stage: TerraformInitAndValidateFmt
 
