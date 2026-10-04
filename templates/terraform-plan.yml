@@ -5,7 +5,7 @@
 
 
 parameters:
-- name: TerraformPlan
+- name: runTerraformPlan
   type: boolean
   default: true
 
